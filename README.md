@@ -69,47 +69,47 @@ This repository contains a **project scaffold** to help you get started quickly:
 The following **core functionalities are NOT implemented** and need to be built by you:
 
 #### 1. Document Processing Pipeline (Phase 2) - **CRITICAL**
-- [ ] PDF parsing with pdfplumber (integrate and test)
-- [ ] Table detection and extraction logic
-- [ ] Intelligent table classification (capital calls vs distributions vs adjustments)
-- [ ] Data validation and cleaning
-- [ ] Error handling for malformed PDFs
-- [ ] Background task processing (Celery integration)
+- [x] PDF parsing with pdfplumber (integrate and test)
+- [x] Table detection and extraction logic
+- [x] Intelligent table classification (capital calls vs distributions vs adjustments)
+- [x] Data validation and cleaning
+- [x] Error handling for malformed PDFs
+- [x] Background task processing (Celery integration)
 
 **Files to implement:**
-- `backend/app/services/document_processor.py` (skeleton provided)
-- `backend/app/services/table_parser.py` (needs implementation)
+- `backend/app/services/document_processor.py` (implemented)
+- `backend/app/services/table_parser.py` (implemented)
 
 #### 2. Vector Store & RAG System (Phase 3) - **CRITICAL**
-- [ ] Text chunking strategy implementation
-- [ ] embedding generation
-- [ ] FAISS index creation and management
-- [ ] Semantic search implementation
-- [ ] Context retrieval for LLM
-- [ ] Prompt engineering for accurate responses
+- [x] Text chunking strategy implementation
+- [x] embedding generation
+- [x] FAISS index creation and management (N/A, uses pgvector)
+- [x] Semantic search implementation
+- [x] Context retrieval for LLM
+- [x] Prompt engineering for accurate responses
 
 **Files to implement:**
-- `backend/app/services/vector_store.py` (pgvector implementation with TODOs)
-- `backend/app/services/rag_engine.py` (needs implementation)
+- `backend/app/services/vector_store.py` (implemented with pgvector)
+- `backend/app/services/rag_engine.py` (N/A, logic in query_engine/vector_store)
 
 **Note**: This project uses **pgvector** instead of FAISS. pgvector is a PostgreSQL extension that stores vectors directly in your database, eliminating the need for a separate vector database.
 
 #### 3. Query Engine & Intent Classification (Phase 3-4) - **CRITICAL**
-- [ ] Intent classifier (calculation vs definition vs retrieval)
-- [ ] Query router logic
-- [ ] LLM integration 
-- [ ] Response formatting
-- [ ] Source citation
-- [ ] Conversation context management
+- [x] Intent classifier (calculation vs definition vs retrieval)
+- [x] Query router logic
+- [x] LLM integration 
+- [x] Response formatting
+- [x] Source citation
+- [x] Conversation context management
 
 **Files to implement:**
-- `backend/app/services/query_engine.py` (needs implementation)
+- `backend/app/services/query_engine.py` (implemented)
 
 #### 4. Integration & Testing
-- [ ] End-to-end document upload flow
+- [x] End-to-end document upload flow
 - [ ] API integration tests
-- [ ] Error handling and logging
-- [ ] Performance optimization
+- [x] Error handling and logging
+- [x] Performance optimization
 
 **Note**: Metrics calculation is already implemented. You can focus on document processing and RAG!
 
@@ -310,28 +310,36 @@ cp .env.example .env
 
 # Edit .env and add your API keys
 # OPENAI_API_KEY=sk-...
-# DATABASE_URL=postgresql://user:password@localhost:5432/funddb
+# DATABASE_URL=postgresql://user:password@localhost:5433/funddb
 ```
 
-3. **Start with Docker Compose**
+3. **Start Redis & PostgreSQL with Docker Compose only**
 ```bash
-docker-compose up -d
+docker-compose up -d redis postgres
 ```
 
-4. **Access the application**
+4. **Run Backend (FastAPI) locally**
+```bash
+cd backend
+make run-dev
+```
+
+5. **Run Frontend (Next.js) locally**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+6. **Access the application**
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-5. **Upload sample document**
-- Navigate to http://localhost:3000/upload
-- Upload the provided PDF: `files/ILPA based Capital Accounting and Performance Metrics_ PIC, Net PIC, DPI, IRR  .pdf`
-- Wait for parsing to complete
-
-6. **Start asking questions**
-- Go to http://localhost:3000/chat
-- Try: "What is DPI?"
-- Try: "Calculate the current DPI for this fund"
+> **Note:**
+> - Redis & PostgreSQL run in Docker containers.
+> - Backend & frontend are run locally (not in containers).
+> - Make sure backend/frontend environment variables point to the correct Redis & Postgres host/port from Docker Compose.
 
 ---
 
@@ -683,7 +691,29 @@ curl -X POST "http://localhost:8000/api/chat/query" \
 
 ## Free LLM Options
 
-You don't need to pay for OpenAI API! Here are free alternatives:
+By default, this project uses **HuggingFace** for local embeddings and LLM (no API key required). You can switch to OpenAI, Gemini, Groq, or Ollama by updating your `.env` and backend config.
+
+**Recommended for development:**
+- **HuggingFace** (default, free, local, no API key needed)
+- For production or higher quality: use OpenAI, Gemini, Groq, or Ollama (see below)
+
+#### How to change LLM provider
+- Update your `.env` file and backend config as described in the Free LLM Options section below.
+- See the [Free LLM Options](#free-llm-options) section for details on each provider.
+
+#### Running Celery Worker and Dashboard
+To run background tasks and monitor them:
+
+**Start Celery worker (for background document processing):**
+```bash
+celery -A app.services.celery_worker.celery_app worker -P eventlet --loglevel=info
+```
+
+**Start Celery dashboard (Flower):**
+```bash
+celery -A app.services.celery_worker.celery_app flower --port=5555
+```
+- Access the dashboard at: http://localhost:5555
 
 ### Option 1: Ollama (Recommended for Development)
 

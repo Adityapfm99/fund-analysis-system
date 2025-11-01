@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ]
     
     # Database
-    DATABASE_URL: str = "postgresql://funduser:fundpass@localhost:5432/funddb"
+    DATABASE_URL: str = "postgresql://funduser:fundpass@localhost:5433/funddb"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

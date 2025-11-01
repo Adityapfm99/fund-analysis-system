@@ -16,13 +16,13 @@ from app.schemas.document import (
 )
 from app.services.document_processor import DocumentProcessor
 from app.core.config import settings
+from app.services.celery_worker import celery_app
 
 router = APIRouter()
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     fund_id: int = None,
     db: Session = Depends(get_db)
@@ -66,17 +66,15 @@ async def upload_document(
     db.commit()
     db.refresh(document)
     
-    # Start background processing
-    background_tasks.add_task(
-        process_document_task,
-        document.id,
-        file_path,
-        fund_id or 1  # Default fund_id if not provided
+    # Start background processing with Celery
+    celery_result = celery_app.send_task(
+        "app.services.celery_worker.process_document_task",
+        args=[file_path, document.id, fund_id or 1]
     )
     
     return DocumentUploadResponse(
         document_id=document.id,
-        task_id=None,
+        task_id=str(celery_result.id),
         status="pending",
         message="Document uploaded successfully. Processing started."
     )

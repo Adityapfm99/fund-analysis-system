@@ -18,6 +18,8 @@ PyPDF2==3.0.1
 pdfplumber==0.10.3
 python-docx==1.1.0
 pypdf==3.17.4
+camelot-py==0.11.0
+ghostscript
 
 # LLM and Embeddings
 langchain==0.1.0
@@ -25,22 +27,27 @@ langchain-openai==0.0.2
 langchain-community==0.0.10
 openai==1.7.2
 anthropic==0.8.1
+opencv-python-headless==4.9.0.80
 
 # Vector Store (using pgvector - PostgreSQL extension)
 # No additional packages needed - pgvector is a PostgreSQL extension
 
 # Embeddings
 sentence-transformers==2.2.2
+transformers==4.30.2
 
 # Task Queue
 celery==5.3.4
 redis==5.0.1
+flower==2.0.1
+eventlet==0.33.3
 
 # Utilities
 python-dotenv==1.0.0
 numpy>=1.26.4
 pandas==2.1.4
 numpy-financial==1.0.0
+huggingface-hub==0.19.4
 
 # HTTP and CORS
 httpx==0.26.0

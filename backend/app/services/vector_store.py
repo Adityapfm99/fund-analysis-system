@@ -26,17 +26,10 @@ class VectorStore:
         self._ensure_extension()
     
     def _initialize_embeddings(self):
-        """Initialize embedding model"""
-        if settings.OPENAI_API_KEY:
-            return OpenAIEmbeddings(
-                model=settings.OPENAI_EMBEDDING_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY
-            )
-        else:
-            # Fallback to local embeddings
-            return HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
+        """Initialize embedding model (force HuggingFace)"""
+        return HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
     
     def _ensure_extension(self):
         """
@@ -136,7 +129,7 @@ class VectorStore:
             # Generate query embedding
             query_embedding = await self._get_embedding(query)
             embedding_list = query_embedding.tolist()
-            
+            embedding_sql = f"ARRAY{embedding_list}::vector"
             # Build query with optional filters
             where_clause = ""
             if filter_metadata:
@@ -155,18 +148,13 @@ class VectorStore:
                     fund_id,
                     content,
                     metadata,
-                    1 - (embedding <=> :query_embedding::vector) as similarity_score
+                    1 - (embedding <=> {embedding_sql}) as similarity_score
                 FROM document_embeddings
                 {where_clause}
-                ORDER BY embedding <=> :query_embedding::vector
-                LIMIT :k
+                ORDER BY embedding <=> {embedding_sql}
+                LIMIT {k}
             """)
-            
-            result = self.db.execute(search_sql, {
-                "query_embedding": str(embedding_list),
-                "k": k
-            })
-            
+            result = self.db.execute(search_sql)
             # Format results
             results = []
             for row in result:
@@ -178,7 +166,6 @@ class VectorStore:
                     "metadata": row[4],
                     "score": float(row[5])
                 })
-            
             return results
         except Exception as e:
             print(f"Error in similarity search: {e}")

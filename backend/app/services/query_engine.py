@@ -31,7 +31,10 @@ class QueryEngine:
             )
         else:
             # Fallback to local LLM
-            return Ollama(model="llama2")
+            from langchain_community.llms import HuggingFacePipeline
+            from transformers import pipeline
+            hf_pipe = pipeline("text-generation", model="gpt2")
+            return HuggingFacePipeline(pipeline=hf_pipe)
     
     async def process_query(
         self, 
@@ -67,6 +70,13 @@ class QueryEngine:
         metrics = None
         if intent == "calculation" and fund_id:
             metrics = self.metrics_calculator.calculate_all_metrics(fund_id)
+            # Inject metrics data as context chunk if similarity search is not enough
+            if metrics:
+                metrics_context = "\n\n[SQL Metrics Data]\n" + "\n".join([
+                    f"{k.upper()}: {v}" for k, v in metrics.items() if v is not None
+                ])
+                # Prepend metrics_context to context_str in _generate_response
+                relevant_docs = ([{"content": metrics_context}] + relevant_docs)[:settings.TOP_K_RESULTS]
         
         # Step 4: Generate response using LLM
         answer = await self._generate_response(
@@ -165,13 +175,13 @@ class QueryEngine:
             ("system", """You are a financial analyst assistant specializing in private equity fund performance.
 
 Your role:
-- Answer questions about fund performance using provided context
-- Calculate metrics like DPI, IRR when asked
-- Explain complex financial terms in simple language
+- Answer questions about fund performance using provided context and metrics
+- If context or metrics contain numbers, ALWAYS perform the calculation and show the result, even if only partial data is available
+- If no numbers are present at all, say 'Data not available'
 - Always cite your sources from the provided documents
 
 When calculating:
-- Use the provided metrics data
+- Use the provided metrics data and numbers from context
 - Show your work step-by-step
 - Explain any assumptions made
 
@@ -179,7 +189,8 @@ Format your responses:
 - Be concise but thorough
 - Use bullet points for lists
 - Bold important numbers using **number**
-- Provide context for metrics"""),
+- Provide context for metrics
+"""),
             ("user", """Context from documents:
 {context}
 {metrics}
@@ -187,7 +198,8 @@ Format your responses:
 
 Question: {query}
 
-Please provide a helpful answer based on the context and metrics provided.""")
+If you find any numbers in the context or metrics, use them to answer the question and show the calculation. If there are no numbers at all, say 'Data not available'.
+""")
         ])
         
         # Generate response
@@ -197,7 +209,6 @@ Please provide a helpful answer based on the context and metrics provided.""")
             history=history_str,
             query=query
         )
-        
         try:
             response = self.llm.invoke(messages)
             if hasattr(response, 'content'):
